@@ -1,2 +1,5 @@
 # 自定义Clash Rule BanAD
 DOMAIN-SUFFIX,jg.37gowan.com
+DOMAIN-SUFFIX,sparklabs.com
+DOMAIN-SUFFIX,swupdate.sparklabs.com
+DOMAIN-SUFFIX,www.sparklabs.com
