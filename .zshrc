@@ -14,14 +14,12 @@ ZINIT_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}/zinit/zinit.git"
 [ ! -d $ZINIT_HOME ] && mkdir -p "$(dirname $ZINIT_HOME)"
 [ ! -d $ZINIT_HOME/.git ] && git clone https://github.com/zdharma-continuum/zinit.git "$ZINIT_HOME"
 source "${ZINIT_HOME}/zinit.zsh"
-
 # 加载 powerlevel10k 主题
 zinit ice depth=1; zinit light romkatv/powerlevel10k
 
 # 快速目录跳转
 zinit ice lucid wait='1'
 zinit light skywind3000/z.lua
-
 # 语法高亮
 zinit ice lucid wait='0' atinit='zpcompinit'
 zinit light zdharma/fast-syntax-highlighting
@@ -85,5 +83,59 @@ ___MY_VMOPTIONS_SHELL_FILE="${HOME}/.jetbrains.vmoptions.sh"; if [ -f "${___MY_V
 
 # iterm2插件
 test -e "${HOME}/.iterm2_shell_integration.zsh" && source "${HOME}/.iterm2_shell_integration.zsh"
+
+
+# [Ctrl+L] clear screen while maintaining scrollback
+fixed-clear-screen() {
+    # FIXME: works incorrectly in tmux
+    local prompt_height=$(echo -n ${(%%)PS1} | wc -l)
+    local lines=$((LINES - prompt_height))
+    printf "$terminfo[cud1]%.0s" {1..$lines}  # cursor down
+    printf "$terminfo[cuu1]%.0s" {1..$lines}  # cursor up
+    zle reset-prompt
+}
+zle -N fixed-clear-screen
+bindkey '^L' fixed-clear-screen
+
+
+
+# [Ctrl-R] Search history by fzf-tab
+fzf-history-search() {
+    local selected=$(
+        fc -rl 1 |
+        ftb-tmux-popup -n '2..' --tiebreak=index --prompt='cmd> ' ${BUFFER:+-q$BUFFER}
+    )
+    if [[ $selected != '' ]] {
+        zle vi-fetch-history -n $selected
+    }
+    zle reset-prompt
+}
+zle -N fzf-history-search
+bindkey '^R' fzf-history-search
+
+# [Ctrl-N] Navigate by xplr
+bindkey -s '^N' '^Q cd -- ${$(xplr):-.} \n'
+
+
+# 一些样板代码（未来可能会改变）
+local extract="
+# 提取当前选择的内容
+in=\${\${\"\$(<{f})\"%\$'\0'*}#*\$'\0'}
+# 获取当前补全状态的上下文
+local -A ctxt=(\"\${(@ps:\2:)CTXT}\")
+"
+
+zstyle ':fzf-tab:complete:cd:*' extra-opts --preview=$extract'exa -1 --color=always ${~ctxt[hpre]}$in'
+zstyle ':fzf-tab:complete:kill:argument-rest' extra-opts --preview=$extract'ps --pid=$in[(w)1] -o cmd --no-headers -w -w' --preview-window=down:3:wrap
+# disable sort when completing `git checkout`
+zstyle ':completion:*:git-checkout:*' sort false
+# set descriptions format to enable group support
+zstyle ':completion:*:descriptions' format '[%d]'
+# set list-colors to enable filename colorizing
+zstyle ':completion:*' list-colors ${(s.:.)LS_COLORS}
+# preview directory's content with exa when completing cd
+zstyle ':fzf-tab:complete:cd:*' fzf-preview 'exa -1 --color=always $realpath'
+# switch group using `,` and `.`
+zstyle ':fzf-tab:*' switch-group ',' '.'
 
 ### End of Zinit's installer chunk
